@@ -5,7 +5,11 @@ module ActiveRecord
     autoload :RelationHandler, 'active_record/relation/predicate_builder/relation_handler'
     autoload :ArrayHandler, 'active_record/relation/predicate_builder/array_handler'
 
-    def self.resolve_column_aliases(klass, hash)
+    def initialize(klass = nil)
+      @klass = klass
+    end
+
+    def resolve_column_aliases(hash)
       hash = hash.dup
       hash.keys.grep(Symbol) do |key|
         if klass.attribute_alias? key
@@ -15,7 +19,7 @@ module ActiveRecord
       hash
     end
 
-    def self.build_from_hash(klass, attributes, default_table)
+    def build_from_hash(attributes, default_table)
       queries = []
 
       attributes.each do |column, value|
@@ -47,7 +51,7 @@ module ActiveRecord
       queries
     end
 
-    def self.expand(klass, table, column, value)
+    def expand(klass, table, column, value)
       queries = []
 
       # Find the foreign key when using queries such as:
@@ -57,17 +61,17 @@ module ActiveRecord
       # PriceEstimate.where(estimate_of: treasure)
       if klass && reflection = klass._reflect_on_association(column)
         if reflection.polymorphic? && base_class = polymorphic_base_class_from_value(value)
-          queries << build(table[reflection.foreign_type], base_class)
+          queries << self.class.build(table[reflection.foreign_type], base_class)
         end
 
         column = reflection.foreign_key
       end
 
-      queries << build(table[column], value)
+      queries << self.class.build(table[column], value)
       queries
     end
 
-    def self.polymorphic_base_class_from_value(value)
+    def polymorphic_base_class_from_value(value)
       case value
       when Relation
         value.klass.base_class
@@ -79,7 +83,7 @@ module ActiveRecord
       end
     end
 
-    def self.references(attributes)
+    def references(attributes)
       attributes.map do |key, value|
         if value.is_a?(Hash)
           key
@@ -116,11 +120,15 @@ module ActiveRecord
     def self.build(attribute, value)
       handler_for(value).call(attribute, value)
     end
-    private_class_method :build
 
     def self.handler_for(object)
       @handlers.detect { |klass, _| klass === object }.last
     end
     private_class_method :handler_for
+
+    protected
+
+    attr_reader :klass
+
   end
 end
