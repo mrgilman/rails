@@ -31,9 +31,10 @@ module ActiveRecord
           else
             table       = Arel::Table.new(column)
             association = klass._reflect_on_association(column)
+            builder = self.class.new(association && association.klass)
 
             value.each do |k, v|
-              queries.concat expand(association && association.klass, table, k, v)
+              queries.concat builder.expand(table, k, v)
             end
           end
         else
@@ -44,14 +45,14 @@ module ActiveRecord
             table = Arel::Table.new(table_name)
           end
 
-          queries.concat expand(klass, table, column, value)
+          queries.concat expand(table, column, value)
         end
       end
 
       queries
     end
 
-    def expand(klass, table, column, value)
+    def expand(table, column, value)
       queries = []
 
       # Find the foreign key when using queries such as:
