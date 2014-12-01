@@ -5,8 +5,9 @@ module ActiveRecord
     autoload :RelationHandler, 'active_record/relation/predicate_builder/relation_handler'
     autoload :ArrayHandler, 'active_record/relation/predicate_builder/array_handler'
 
-    def initialize(klass = nil)
+    def initialize(klass, arel_table)
       @klass = klass
+      @arel_table = arel_table
     end
 
     def resolve_column_aliases(hash)
@@ -19,11 +20,11 @@ module ActiveRecord
       hash
     end
 
-    def build_from_hash(attributes, default_table)
+    def build_from_hash(attributes)
       queries = []
 
       attributes.each do |column, value|
-        table = default_table
+        table = arel_table
 
         if value.is_a?(Hash)
           if value.empty?
@@ -31,10 +32,10 @@ module ActiveRecord
           else
             table       = Arel::Table.new(column)
             association = klass._reflect_on_association(column)
-            builder = self.class.new(association && association.klass)
+            builder = self.class.new(association && association.klass, table)
 
             value.each do |k, v|
-              queries.concat builder.expand(table, k, v)
+              queries.concat builder.expand(k, v)
             end
           end
         else
@@ -43,16 +44,18 @@ module ActiveRecord
           if column.include?('.')
             table_name, column = column.split('.', 2)
             table = Arel::Table.new(table_name)
+            builder = self.class.new(klass, table)
+            queries.concat builder.expand(column, value)
           end
 
-          queries.concat expand(table, column, value)
+          queries.concat expand(column, value)
         end
       end
 
       queries
     end
 
-    def expand(table, column, value)
+    def expand(column, value)
       queries = []
 
       # Find the foreign key when using queries such as:
@@ -62,13 +65,13 @@ module ActiveRecord
       # PriceEstimate.where(estimate_of: treasure)
       if klass && reflection = klass._reflect_on_association(column)
         if reflection.polymorphic? && base_class = polymorphic_base_class_from_value(value)
-          queries << self.class.build(table[reflection.foreign_type], base_class)
+          queries << self.class.build(arel_table[reflection.foreign_type], base_class)
         end
 
         column = reflection.foreign_key
       end
 
-      queries << self.class.build(table[column], value)
+      queries << self.class.build(arel_table[column], value)
       queries
     end
 
@@ -84,7 +87,7 @@ module ActiveRecord
       end
     end
 
-    def references(attributes)
+    def self.references(attributes)
       attributes.map do |key, value|
         if value.is_a?(Hash)
           key
@@ -129,7 +132,7 @@ module ActiveRecord
 
     protected
 
-    attr_reader :klass
+    attr_reader :klass, :arel_table
 
   end
 end
