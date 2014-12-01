@@ -5,9 +5,9 @@ module ActiveRecord
     autoload :RelationHandler, 'active_record/relation/predicate_builder/relation_handler'
     autoload :ArrayHandler, 'active_record/relation/predicate_builder/array_handler'
 
-    def initialize(klass, arel_table)
+    def initialize(klass, table)
       @klass = klass
-      @arel_table = arel_table
+      @table = table
     end
 
     def resolve_column_aliases(hash)
@@ -25,8 +25,6 @@ module ActiveRecord
       builder = self
 
       attributes.each do |key, value|
-        table = arel_table
-
         if key.to_s.include?('.')
           table_name, column = key.to_s.split('.', 2)
           hash = attributes[table_name] || {}
@@ -39,9 +37,9 @@ module ActiveRecord
           if value.empty?
             queries << '1=0'
           else
-            table       = Arel::Table.new(key)
+            arel_table       = Arel::Table.new(key)
             association = klass._reflect_on_association(key)
-            builder = self.class.new(association && association.klass, table)
+            builder = self.class.new(association && association.klass, arel_table)
 
             value.each do |k, v|
               queries.concat builder.expand(k, v)
@@ -65,13 +63,13 @@ module ActiveRecord
       # PriceEstimate.where(estimate_of: treasure)
       if klass && reflection = klass._reflect_on_association(column)
         if reflection.polymorphic? && base_class = polymorphic_base_class_from_value(value)
-          queries << self.class.build(arel_table[reflection.foreign_type], base_class)
+          queries << self.class.build(table[reflection.foreign_type], base_class)
         end
 
         column = reflection.foreign_key
       end
 
-      queries << self.class.build(arel_table[column], value)
+      queries << self.class.build(table[column], value)
       queries
     end
 
@@ -132,7 +130,7 @@ module ActiveRecord
 
     protected
 
-    attr_reader :klass, :arel_table
+    attr_reader :klass, :table
 
   end
 end
