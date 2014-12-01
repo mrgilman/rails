@@ -24,15 +24,23 @@ module ActiveRecord
       queries = []
       builder = self
 
-      attributes.each do |column, value|
+      attributes.each do |key, value|
         table = arel_table
+
+        if key.to_s.include?('.')
+          table_name, column = key.to_s.split('.', 2)
+          hash = attributes[table_name] || {}
+          hash[column] = value
+          key = table_name
+          value = hash
+        end
 
         if value.is_a?(Hash)
           if value.empty?
             queries << '1=0'
           else
-            table       = Arel::Table.new(column)
-            association = klass._reflect_on_association(column)
+            table       = Arel::Table.new(key)
+            association = klass._reflect_on_association(key)
             builder = self.class.new(association && association.klass, table)
 
             value.each do |k, v|
@@ -40,14 +48,7 @@ module ActiveRecord
             end
           end
         else
-          column = column.to_s
-
-          if column.include?('.')
-            table_name, column = column.split('.', 2)
-            table = Arel::Table.new(table_name)
-            builder = self.class.new(klass, table)
-          end
-          queries.concat builder.expand(column, value)
+          queries.concat builder.expand(key.to_s, value)
         end
       end
 
