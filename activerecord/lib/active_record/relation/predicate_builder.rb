@@ -21,29 +21,24 @@ module ActiveRecord
     end
 
     def build_from_hash(attributes)
+      return ["1=0"] if attributes.empty?
       queries = []
       builder = self
 
       attributes.each do |key, value|
         if key.to_s.include?('.')
-          table_name, column = key.to_s.split('.', 2)
-          hash = attributes[table_name] || {}
-          hash[column] = value
-          key = table_name
-          value = hash
+          key, value = convert_dot_notation_to_hash(attributes, key, value)
         end
 
         if value.is_a?(Hash)
           if value.empty?
             queries << '1=0'
           else
-            arel_table       = Arel::Table.new(key)
+            arel_table = Arel::Table.new(key)
             association = klass._reflect_on_association(key)
             builder = self.class.new(association && association.klass, arel_table)
 
-            value.each do |k, v|
-              queries.concat builder.expand(k, v)
-            end
+            queries.concat builder.build_from_hash(value)
           end
         else
           queries.concat builder.expand(key.to_s, value)
@@ -132,5 +127,13 @@ module ActiveRecord
 
     attr_reader :klass, :table
 
+    private
+
+    def convert_dot_notation_to_hash(attributes, key, value)
+      table_name, column = key.to_s.split('.', 2)
+      hash = attributes[table_name] || {}
+      hash[column] = value
+      [table_name, hash]
+    end
   end
 end
