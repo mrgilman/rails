@@ -961,10 +961,6 @@ module ActiveRecord
       end
     end
 
-    def predicate_builder
-      @predicate_builder ||= PredicateBuilder.new(@klass, table)
-    end
-
     def create_binds(opts)
       bindable, non_binds = opts.partition do |column, value|
         case value

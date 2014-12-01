@@ -22,6 +22,7 @@ module ActiveRecord
 
     def build_from_hash(attributes)
       queries = []
+      builder = self
 
       attributes.each do |column, value|
         table = arel_table
@@ -45,10 +46,8 @@ module ActiveRecord
             table_name, column = column.split('.', 2)
             table = Arel::Table.new(table_name)
             builder = self.class.new(klass, table)
-            queries.concat builder.expand(column, value)
           end
-
-          queries.concat expand(column, value)
+          queries.concat builder.expand(column, value)
         end
       end
 
