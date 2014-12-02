@@ -116,7 +116,7 @@ module ActiveRecord
     register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
     register_handler(Range, ->(attribute, value) { attribute.between(value) })
     register_handler(Relation, RelationHandler.new)
-    register_handler(Array, ArrayHandler.new)
+    register_handler(Array, ArrayHandler.new(self))
 
     def self.build(attribute, value)
       handler_for(value).call(attribute, value)
