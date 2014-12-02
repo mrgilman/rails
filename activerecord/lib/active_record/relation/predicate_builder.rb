@@ -38,7 +38,9 @@ module ActiveRecord
             association = klass._reflect_on_association(key)
             builder = self.class.new(association && association.klass, arel_table)
 
-            queries.concat builder.build_from_hash(value)
+            value.each do |k, v|
+              queries.concat builder.expand(k, v)
+            end
           end
         else
           queries.concat builder.expand(key.to_s, value)
