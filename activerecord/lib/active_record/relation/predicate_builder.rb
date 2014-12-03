@@ -1,13 +1,20 @@
 module ActiveRecord
   class PredicateBuilder # :nodoc:
-    @handlers = []
-
     autoload :RelationHandler, 'active_record/relation/predicate_builder/relation_handler'
     autoload :ArrayHandler, 'active_record/relation/predicate_builder/array_handler'
 
     def initialize(klass, table)
       @klass = klass
       @table = table
+      @handlers = []
+
+      register_handler(BasicObject, ->(attribute, value) { attribute.eq(value) })
+      # FIXME: I think we need to deprecate this behavior
+      register_handler(Class, ->(attribute, value) { attribute.eq(value.name) })
+      register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
+      register_handler(Range, ->(attribute, value) { attribute.between(value) })
+      register_handler(Relation, RelationHandler.new)
+      register_handler(Array, ArrayHandler.new)
     end
 
     def resolve_column_aliases(hash)
@@ -82,14 +89,6 @@ module ActiveRecord
     def self.register_handler(klass, handler)
       @handlers.unshift([klass, handler])
     end
-
-    register_handler(BasicObject, ->(attribute, value) { attribute.eq(value) })
-    # FIXME: I think we need to deprecate this behavior
-    register_handler(Class, ->(attribute, value) { attribute.eq(value.name) })
-    register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
-    register_handler(Range, ->(attribute, value) { attribute.between(value) })
-    register_handler(Relation, RelationHandler.new)
-    register_handler(Array, ArrayHandler.new)
 
     def self.build(attribute, value)
       handler_for(value).call(attribute, value)
