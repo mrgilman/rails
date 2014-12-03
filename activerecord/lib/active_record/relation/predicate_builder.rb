@@ -42,13 +42,13 @@ module ActiveRecord
       # PriceEstimate.where(estimate_of: treasure)
       if klass && reflection = klass._reflect_on_association(column)
         if reflection.polymorphic? && base_class = polymorphic_base_class_from_value(value)
-          queries << self.class.build(table[reflection.foreign_type], base_class)
+          queries << build(table[reflection.foreign_type], base_class)
         end
 
         column = reflection.foreign_key
       end
 
-      queries << self.class.build(table[column], value)
+      queries << build(table[column], value)
       queries
     end
 
@@ -86,18 +86,13 @@ module ActiveRecord
     #       )
     #     end
     #     ActiveRecord::PredicateBuilder.register_handler(MyCustomDateRange, handler)
-    def self.register_handler(klass, handler)
+    def register_handler(klass, handler)
       @handlers.unshift([klass, handler])
     end
 
-    def self.build(attribute, value)
+    def build(attribute, value)
       handler_for(value).call(attribute, value)
     end
-
-    def self.handler_for(object)
-      @handlers.detect { |klass, _| klass === object }.last
-    end
-    private_class_method :handler_for
 
     protected
 
@@ -133,6 +128,10 @@ module ActiveRecord
       end
 
       attributes
+    end
+
+    def handler_for(object)
+      @handlers.detect { |klass, _| klass === object }.last
     end
   end
 end
