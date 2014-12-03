@@ -14,7 +14,21 @@ module ActiveRecord
       register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
       register_handler(Range, ->(attribute, value) { attribute.between(value) })
       register_handler(Relation, RelationHandler.new)
-      register_handler(Array, ArrayHandler.new)
+      register_handler(Array, ArrayHandler.new(self))
+    end
+
+    def type_cast(attribute_name, value)
+      return value if value.is_a?(Arel::Nodes::BindParam)
+      type = klass.type_for_attribute(attribute_name.to_s)
+      Arel::Nodes::Quoted.new(type.type_cast_for_database(value))
+    end
+
+    def type_cast_range(attribute_name, value)
+      if value.exclude_end?
+        (type_cast(attribute_name, value.first)...type_cast(attribute_name, value.last))
+      else
+        (type_cast(attribute_name, value.first)..type_cast(attribute_name, value.last))
+      end
     end
 
     def resolve_column_aliases(hash)
@@ -91,7 +105,16 @@ module ActiveRecord
     end
 
     def build(attribute, value)
-      handler_for(value).call(attribute, value)
+      type_casted_value =
+        case value
+        when Array
+          value.map { |object| type_cast(attribute.name, object) }
+        when Range
+          type_cast_range(attribute.name, value)
+        else
+          type_cast(attribute.name, value)
+        end
+      handler_for(value).call(attribute, type_casted_value)
     end
 
     protected
