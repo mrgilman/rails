@@ -17,20 +17,6 @@ module ActiveRecord
       register_handler(Array, ArrayHandler.new(self))
     end
 
-    def type_cast(attribute_name, value)
-      return value if value.is_a?(Arel::Nodes::BindParam)
-      type = klass.type_for_attribute(attribute_name.to_s)
-      Arel::Nodes::Quoted.new(type.type_cast_for_database(value))
-    end
-
-    def type_cast_range(attribute_name, value)
-      if value.exclude_end?
-        (type_cast(attribute_name, value.first)...type_cast(attribute_name, value.last))
-      else
-        (type_cast(attribute_name, value.first)..type_cast(attribute_name, value.last))
-      end
-    end
-
     def resolve_column_aliases(hash)
       hash = hash.dup
       hash.keys.grep(Symbol) do |key|
@@ -155,6 +141,20 @@ module ActiveRecord
 
     def handler_for(object)
       @handlers.detect { |klass, _| klass === object }.last
+    end
+
+    def type_cast(attribute_name, value)
+      return value if value.is_a?(Arel::Nodes::BindParam) || klass.nil?
+      type = klass.type_for_attribute(attribute_name.to_s)
+      Arel::Nodes::Quoted.new(type.type_cast_for_database(value))
+    end
+
+    def type_cast_range(attribute_name, value)
+      if value.exclude_end?
+        (type_cast(attribute_name, value.first)...type_cast(attribute_name, value.last))
+      else
+        (type_cast(attribute_name, value.first)..type_cast(attribute_name, value.last))
+      end
     end
   end
 end
