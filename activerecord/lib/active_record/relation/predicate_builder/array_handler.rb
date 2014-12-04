@@ -3,8 +3,8 @@ require 'active_support/core_ext/string/filters'
 module ActiveRecord
   class PredicateBuilder
     class ArrayHandler # :nodoc:
-      def call(attribute, value)
-        values = value.map { |x| x.is_a?(Base) ? x.id : x }
+      def call(attribute, values, builder)
+        values = values.map { |x| x.is_a?(Base) ? x.id : x }
         nils, values = values.partition(&:nil?)
 
         if values.any? { |val| val.is_a?(Array) }
@@ -24,15 +24,15 @@ module ActiveRecord
         values_predicate =
           case values.length
           when 0 then NullPredicate
-          when 1 then attribute.eq(values.first)
-          else attribute.in(values)
+          when 1 then PredicateBuilder.build(attribute, values.first, builder)
+          else attribute.in(values.map { |value| builder.type_cast(attribute.name, value) })
           end
 
         unless nils.empty?
-          values_predicate = values_predicate.or(attribute.eq(nil))
+          values_predicate = values_predicate.or(PredicateBuilder.build(attribute, nil, builder))
         end
 
-        array_predicates = ranges.map { |range| attribute.between(range) }
+        array_predicates = ranges.map { |range| PredicateBuilder.build(attribute, range, builder) }
         array_predicates.unshift(values_predicate)
         array_predicates.inject { |composite, predicate| composite.or(predicate) }
       end

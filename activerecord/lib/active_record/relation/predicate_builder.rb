@@ -35,13 +35,13 @@ module ActiveRecord
       # PriceEstimate.where(estimate_of: treasure)
       if klass && reflection = klass._reflect_on_association(column)
         if reflection.polymorphic? && base_class = polymorphic_base_class_from_value(value)
-          queries << self.class.build(table[reflection.foreign_type], base_class)
+          queries << self.class.build(table[reflection.foreign_type], base_class, self)
         end
 
         column = reflection.foreign_key
       end
 
-      queries << self.class.build(table[column], value)
+      queries << self.class.build(table[column], value, self)
       queries
     end
 
@@ -55,6 +55,12 @@ module ActiveRecord
       when Base
         value.class.base_class
       end
+    end
+
+    def type_cast(attribute_name, value)
+      return value if value.is_a?(Arel::Nodes::BindParam) || klass.nil?
+      type = klass.type_for_attribute(attribute_name.to_s)
+      Arel::Nodes::Quoted.new(type.type_cast_for_database(value))
     end
 
     def self.references(attributes)
@@ -83,16 +89,16 @@ module ActiveRecord
       @handlers.unshift([klass, handler])
     end
 
-    register_handler(BasicObject, ->(attribute, value) { attribute.eq(value) })
+    register_handler(BasicObject, ->(attribute, value, instance) { attribute.eq(instance.type_cast(attribute.name, value)) })
     # FIXME: I think we need to deprecate this behavior
-    register_handler(Class, ->(attribute, value) { attribute.eq(value.name) })
-    register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
-    register_handler(Range, ->(attribute, value) { attribute.between(value) })
+    register_handler(Class, ->(attribute, value, instance) { attribute.eq(instance.type_cast(attribute.name, value.name)) })
+    register_handler(Base, ->(attribute, value, instance) { attribute.eq(instance.type_cast(attribute.name, value.id)) })
+    register_handler(Range, ->(attribute, value, instance) { attribute.between(value) })
     register_handler(Relation, RelationHandler.new)
     register_handler(Array, ArrayHandler.new)
 
-    def self.build(attribute, value)
-      handler_for(value).call(attribute, value)
+    def self.build(attribute, value, instance)
+      handler_for(value).call(attribute, value, instance)
     end
 
     def self.handler_for(object)

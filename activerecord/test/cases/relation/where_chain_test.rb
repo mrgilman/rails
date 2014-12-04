@@ -24,7 +24,7 @@ module ActiveRecord
     end
 
     def test_not_null
-      expected = Post.arel_table[@name].not_eq(nil)
+      expected = Post.arel_table[@name].not_eq(Arel::Nodes::Quoted.new(nil))
       relation = Post.where.not(title: nil)
       assert_equal([expected], relation.where_values)
     end
@@ -36,7 +36,7 @@ module ActiveRecord
     end
 
     def test_not_in
-      expected = Post.arel_table[@name].not_in(%w[hello goodbye])
+      expected = Post.arel_table[@name].not_in([Arel::Nodes::Quoted.new('hello'), Arel::Nodes::Quoted.new('goodbye')])
       relation = Post.where.not(title: %w[hello goodbye])
       assert_equal([expected], relation.where_values)
     end
@@ -90,7 +90,7 @@ module ActiveRecord
     def test_chaining_multiple
       relation = Post.where.not(author_id: [1, 2]).where.not(title: 'ruby on rails')
 
-      expected = Post.arel_table['author_id'].not_in([1, 2])
+      expected = Post.arel_table['author_id'].not_in([Arel::Nodes::Quoted.new(1), Arel::Nodes::Quoted.new(2)])
       assert_equal(expected, relation.where_values[0])
 
       value = relation.where_values[1]
