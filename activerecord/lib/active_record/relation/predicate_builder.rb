@@ -8,10 +8,10 @@ module ActiveRecord
       @table = table
       @handlers = []
 
-      register_handler(BasicObject, ->(attribute, value) { attribute.eq(value) })
+      register_handler(BasicObject, ->(attribute, value) { attribute.eq(type_cast(attribute.name, value)) })
       # FIXME: I think we need to deprecate this behavior
-      register_handler(Class, ->(attribute, value) { attribute.eq(value.name) })
-      register_handler(Base, ->(attribute, value) { attribute.eq(value.id) })
+      register_handler(Class, ->(attribute, value) { attribute.eq(type_cast(attribute.name, value.name)) })
+      register_handler(Base, ->(attribute, value) { attribute.eq(type_cast(attribute.name, value.id)) })
       register_handler(Range, ->(attribute, value) { attribute.between(value) })
       register_handler(Relation, RelationHandler.new)
       register_handler(Array, ArrayHandler.new(self))
@@ -91,16 +91,7 @@ module ActiveRecord
     end
 
     def build(attribute, value)
-      type_casted_value =
-        case value
-        when Array
-          value.map { |object| type_cast(attribute.name, object) }
-        when Range
-          type_cast_range(attribute.name, value)
-        else
-          type_cast(attribute.name, value)
-        end
-      handler_for(value).call(attribute, type_casted_value)
+      handler_for(value).call(attribute, value)
     end
 
     protected
@@ -147,14 +138,6 @@ module ActiveRecord
       return value if value.is_a?(Arel::Nodes::BindParam) || klass.nil?
       type = klass.type_for_attribute(attribute_name.to_s)
       Arel::Nodes::Quoted.new(type.type_cast_for_database(value))
-    end
-
-    def type_cast_range(attribute_name, value)
-      if value.exclude_end?
-        (type_cast(attribute_name, value.first)...type_cast(attribute_name, value.last))
-      else
-        (type_cast(attribute_name, value.first)..type_cast(attribute_name, value.last))
-      end
     end
   end
 end
