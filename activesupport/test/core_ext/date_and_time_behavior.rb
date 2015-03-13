@@ -301,6 +301,18 @@ module DateAndTimeBehavior
     assert_not date_time_init(2015,1,5,15,15,10).on_weekend?
   end
 
+  def test_upcoming
+    assert_equal date_time_init(2015,03,13,0,0,0), date_time_init(2015,03,9,10,10,10).upcoming(:friday)
+    assert_equal date_time_init(2015,03,16,0,0,0), date_time_init(2015,03,13,10,10,10).upcoming(:monday)
+    assert_equal date_time_init(2015,03,18,0,0,0), date_time_init(2015,03,11,10,10,10).upcoming(:wednesday)
+  end
+
+  def test_upcoming_at_same_time
+    assert_equal date_time_init(2015,03,13,10,10,10), date_time_init(2015,03,9,10,10,10).upcoming(:friday, same_time: true)
+    assert_equal date_time_init(2015,03,16,10,10,10), date_time_init(2015,03,13,10,10,10).upcoming(:monday, same_time: true)
+    assert_equal date_time_init(2015,03,18,10,10,10), date_time_init(2015,03,18,10,10,10).upcoming(:wednesday, same_time: true)
+  end
+
   def with_bw_default(bw = :monday)
     old_bw = Date.beginning_of_week
     Date.beginning_of_week = bw

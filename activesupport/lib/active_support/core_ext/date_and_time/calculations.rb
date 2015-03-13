@@ -133,6 +133,12 @@ module DateAndTime
       same_time ? copy_time_to(result) : result
     end
 
+    def upcoming(day, same_time: false)
+      result = beginning_of_week(:monday) + DAYS_INTO_WEEK[day].days
+      result = copy_time_to(result) if same_time
+      result = result <= self ? result + 1.week : result
+    end
+
     # Returns a new date/time representing the next weekday.
     def next_weekday
       if next_day.on_weekend?
